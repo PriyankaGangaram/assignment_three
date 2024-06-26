@@ -1,0 +1,132 @@
+---
+title: "ANA 515 Assignment 3"
+author: "PRIYANKA RAMESH GANGARAM"
+date: "26 June 2024"
+output: 
+  html_document:
+    theme: 
+      bootswatch: materia
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(dplyr)
+library(ggplot2)
+library(lubridate)
+library(readr)
+library(stringr)
+```
+
+# Introduction
+
+While working on the assignment, I purposed to perform data cleaning and transformation on weather-related storm events. This data was to be retrieved from NOAA's Storm Events Database. Using my date of birth, I downloaded and imported the relevant csv file. The dataset contained crutial information regarding significant weather events such as their occurrence dates, locations and types. My intention was to transform this dataset into a usable format and create a visual representation of the number of events per state area.
+
+## Data Loading
+
+In this section, I loaded the weather data for analysis.
+
+```{r}
+weather_data <- read_csv("weather_data.csv")
+```
+
+## Data Cleaning and Transformation
+
+Data cleaning and transformation process are critical steps to ensure the dataset is in a suitable format for analysis. The following steps are taken to achieve this:
+
+### Limit Dataframe to Specific Columns
+
+I limited the dataframe to the essential columns that will be used for the analysis.
+
+```{r}
+weather_data <- weather_data %>%
+  select(BEGIN_YEARMONTH, EPISODE_ID, STATE, STATE_FIPS, CZ_NAME, CZ_TYPE, CZ_FIPS, EVENT_TYPE)
+```
+
+### Arrange Data by State Name
+
+I arranged the data by the state name to facilitate further processing.
+
+```{r}
+weather_data <- weather_data %>%
+  arrange(STATE)
+```
+
+### Change State and County Names to Title Case
+
+To standardise the data, I changed the state and county names to title case.
+
+```{r}
+weather_data <- weather_data %>%
+  mutate(STATE = str_to_title(STATE), CZ_NAME = str_to_title(CZ_NAME))
+```
+
+### Limit to Events Listed by County FIPS and Remove CZ_TYPE Column
+
+I filtered the events listed by county FIPS and removed the `CZ_TYPE` column, since it was not needed.
+
+```{r}
+weather_data <- weather_data %>%
+  filter(CZ_TYPE == "C") %>%
+  select(-CZ_TYPE)
+```
+
+### Pad State and County FIPS and Unite Columns
+
+To create a unique identifier for each event, I padded the state and county FIPS codes. Then I combine them into a single `FIPS` column.
+
+```{r}
+weather_data <- weather_data %>%
+  mutate(STATE_FIPS = str_pad(STATE_FIPS, width = 3, pad = "0"),
+         CZ_FIPS = str_pad(CZ_FIPS, width = 3, pad = "0"),
+         FIPS = str_c(STATE_FIPS, CZ_FIPS))
+```
+
+### Change All Column Names to Lower Case
+
+I changed all column names to lower case for consistency.
+
+```{r}
+weather_data <- weather_data %>%
+  rename_all(tolower)
+```
+
+### Create Dataframe with State Name, Area, and Region
+
+I used base R data on U.S. states to create a data frame containing state names, areas, and regions.
+
+```{r}
+data("state")
+state_info <- data.frame(state = state.name, area = state.area, region = state.region)
+```
+
+### Create Dataframe with Number of Events per State and Merge
+
+I created a data frame with the number of events per state and merge it with the state information data frame.
+
+```{r}
+events_per_state <- weather_data %>%
+  group_by(state) %>%
+  summarise(events_count = n())
+
+merged_data <- merge(events_per_state, state_info, by.x = "state", by.y = "state", all.x = TRUE)
+merged_data <- na.omit(merged_data)
+```
+
+### Create Specified Plot
+
+Finally, I created a scatter plot showing the number of events per state area.
+
+```{r}
+ggplot(merged_data, aes(x = area, y = events_count, color = region)) +
+  geom_point() +
+  labs(
+    title = "Number of Events per State Area",
+    x = "State Area",
+    y = "Number of Events"
+  ) +
+  theme_minimal()
+```
+
+## Conclusion
+
+The analysis I performed demonstrates a systematic approach to cleaning and transforming data. Meticulous adherence to the steps and instructions resulted in the preparation of the data for analysis and creation of visual representation of events per state area. I encountered an error while reading the csv file, however, as it was not relevant to the data cleaning and transformation process, the error was safely ignored. This process shows the importance of data preparation in deriving meaningful insights from unprocessed data.
